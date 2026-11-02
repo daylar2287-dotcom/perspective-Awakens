@@ -168,7 +168,7 @@ static void draw3d(void){
  sceGuDepthFunc(GU_GEQUAL);
  sceGuDisable(GU_CULL_FACE);
 
-sceGumMatrixMode(GU_PROJECTION);
+ sceGumMatrixMode(GU_PROJECTION);
  sceGumLoadIdentity();
  sceGumPerspective(65,16.0f/9.0f,.5f,100);
 
@@ -176,7 +176,7 @@ sceGumMatrixMode(GU_PROJECTION);
  sceGumLoadIdentity();
  sceGumLookAt(&eye,&at,&up);
 
-sceGumMatrixMode(GU_MODEL);
+ sceGumMatrixMode(GU_MODEL);
  sceGumLoadIdentity();
 
  roomDraw();
@@ -240,19 +240,23 @@ static void update(void){
  float ax=(pad.Lx-128)/128.0f;
  float ay=(pad.Ly-128)/128.0f;
 
- if(fabsf(ax)<.12f)ax=0;
- if(fabsf(ay)<.12f)ay=0;
+ /* Analog dead zones */
+ if(fabsf(ax)<0.15f)ax=0;
+ if(fabsf(ay)<0.15f)ay=0;
 
- yaw+=ax*.045f;
+ /* Left/right turns the camera (reversed) */
+ yaw-=ax*.045f;
 
+ /* Triangle and Circle control looking up/down */
  if(pad.Buttons&PSP_CTRL_TRIANGLE)pitch+=.025f;
  if(pad.Buttons&PSP_CTRL_CIRCLE)pitch-=.025f;
 
  if(pitch>.8f)pitch=.8f;
  if(pitch<-.8f)pitch=-.8f;
 
- x+=sinf(yaw)*(-ay)*.075f+cosf(yaw)*ax*.075f;
- z+=cosf(yaw)*(-ay)*.075f-sinf(yaw)*ax*.075f;
+ /* Forward and backward movement only */
+ x+=sinf(yaw)*(-ay)*.075f;
+ z+=cosf(yaw)*(-ay)*.075f;
 
  if(x>7.1f)x=7.1f;
  if(x< -7.1f)x=-7.1f;
@@ -260,7 +264,8 @@ static void update(void){
 
  if(z>8.5f){
   if((room==0&&!solved)||(room==5&&!secret)){
-   z=8.4f;message(5,120);
+   z=8.4f;
+   message(5,120);
   }
   else enter(room+1);
  }
@@ -296,7 +301,9 @@ static void textScreen(void){
  pspDebugScreenPrintf("%s\nROOM %d / %d     MEMORIES %d\n\n",
   rooms[room].name,room+1,ROOMS,secrets);
 
- pspDebugScreenPrintf("Analog: move / turn   X: interact\n");
+ pspDebugScreenPrintf("Analog up/down: move\n");
+ pspDebugScreenPrintf("Analog left/right: turn\n");
+ pspDebugScreenPrintf("X: interact\n");
  pspDebugScreenPrintf("Triangle/Circle: look up/down\n\n");
 
  pspDebugScreenPrintf("%s\n",
