@@ -1,9 +1,7 @@
-
 #include <pspkernel.h>
 #include <pspdebug.h>
 #include <pspdisplay.h>
 #include <pspctrl.h>
-#include <stdio.h>
 
 PSP_MODULE_INFO("Perspective Awakens", 0, 1, 0);
 PSP_MAIN_THREAD_ATTR(THREAD_ATTR_USER | THREAD_ATTR_VFPU);
@@ -19,6 +17,7 @@ int main(void)
 
     sceCtrlSetSamplingCycle(0);
     sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
+
     pspDebugScreenInit();
     sceCtrlReadBufferPositive(&oldpad, 1);
 
@@ -49,9 +48,7 @@ int main(void)
                 if (scale >= 3 &&
                     x > 25 && x < 45 &&
                     y > 10 && y < 23)
-                {
                     solved = 1;
-                }
             }
         }
 
@@ -66,9 +63,7 @@ int main(void)
 
         if ((pad.Buttons & PSP_CTRL_TRIANGLE) &&
             !(oldpad.Buttons & PSP_CTRL_TRIANGLE))
-        {
             help = !help;
-        }
 
         if (x < 1) x = 1;
         if (x > 58) x = 58;
@@ -78,28 +73,28 @@ int main(void)
         pspDebugScreenSetXY(0, 0);
         pspDebugScreenClear();
 
-        printf("PERSPECTIVE AWAKENS | ROOM %d / 6\n", room);
-        printf("============================================\n\n");
-        printf("A strange room bends around one object.\n");
-        printf("Change its scale and reach the goal zone.\n\n");
-        printf("       +--------------------------+\n");
-        printf("       |                          |\n");
-        printf("       |        GOAL ZONE         |\n");
-        printf("       |                          |\n");
-        printf("       +--------------------------+\n\n");
-        printf("Object scale: %d\n", scale);
+        pspDebugScreenPrintf("PERSPECTIVE AWAKENS | ROOM %d / 6\n", room);
+        pspDebugScreenPrintf("============================================\n\n");
+        pspDebugScreenPrintf("A strange room bends around one object.\n");
+        pspDebugScreenPrintf("Change its scale and reach the goal zone.\n\n");
+        pspDebugScreenPrintf("       +--------------------------+\n");
+        pspDebugScreenPrintf("       |                          |\n");
+        pspDebugScreenPrintf("       |        GOAL ZONE         |\n");
+        pspDebugScreenPrintf("       |                          |\n");
+        pspDebugScreenPrintf("       +--------------------------+\n\n");
+        pspDebugScreenPrintf("Object scale: %d\n", scale);
 
         pspDebugScreenSetXY(x, y);
-        printf("@");
+        pspDebugScreenPrintf("@");
 
         pspDebugScreenSetXY(0, 27);
 
         if (solved)
-            printf("PUZZLE SOLVED! Press CROSS for next room.\n");
+            pspDebugScreenPrintf("PUZZLE SOLVED! Press CROSS for next room.\n");
         else if (help)
-            printf("D-pad: Move | CROSS: Scale | START: Reset\n");
+            pspDebugScreenPrintf("D-pad: Move | CROSS: Scale | START: Reset\n");
         else
-            printf("TRIANGLE: Show controls\n");
+            pspDebugScreenPrintf("TRIANGLE: Show controls\n");
 
         oldpad = pad;
         sceDisplayWaitVblankStart();
