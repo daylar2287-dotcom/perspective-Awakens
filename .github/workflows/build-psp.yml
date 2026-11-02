@@ -1,0 +1,26 @@
+
+name: Build PSP EBOOT
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: pspdev/pspdev:latest
+
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Build PSP game
+        run: make
+
+      - name: Upload EBOOT
+        uses: actions/upload-artifact@v4
+        with:
+          name: Perspective-Awakens-EBOOT
+          path: EBOOT.PBP
