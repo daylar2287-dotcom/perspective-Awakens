@@ -168,15 +168,15 @@ static void draw3d(void){
  sceGuDepthFunc(GU_GEQUAL);
  sceGuDisable(GU_CULL_FACE);
 
- sceGuMatrixMode(GU_PROJECTION);
+sceGumMatrixMode(GU_PROJECTION);
  sceGumLoadIdentity();
  sceGumPerspective(65,16.0f/9.0f,.5f,100);
 
- sceGuMatrixMode(GU_VIEW);
+ sceGumMatrixMode(GU_VIEW);
  sceGumLoadIdentity();
  sceGumLookAt(&eye,&at,&up);
 
- sceGuMatrixMode(GU_MODEL);
+sceGumMatrixMode(GU_MODEL);
  sceGumLoadIdentity();
 
  roomDraw();
