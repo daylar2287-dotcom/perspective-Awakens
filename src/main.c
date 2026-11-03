@@ -240,56 +240,51 @@ static void interact(void){
 static void update(void){
  float ax=(pad.Lx-128)/128.0f;
  float ay=(pad.Ly-128)/128.0f;
- float len=sqrtf(ax*ax+ay*ay);
 
  const float dead=.15f;
  const float speed=.075f;
  const float turn=.045f;
 
- /* Analog stick dead zone */
+ /* Joystick dead zone */
  if(fabsf(ax)<dead)ax=0;
  if(fabsf(ay)<dead)ay=0;
 
  /* Normalize diagonal movement */
- len=sqrtf(ax*ax+ay*ay);
+ float len=sqrtf(ax*ax+ay*ay);
  if(len>1.0f){
   ax/=len;
   ay/=len;
  }
 
- /* CAMERA CONTROLS */
-
- /* Square = turn left */
+ /* Camera controls */
  if(pad.Buttons&PSP_CTRL_SQUARE)
-  yaw-=turn;
-
- /* Circle = turn right */
- if(pad.Buttons&PSP_CTRL_CIRCLE)
   yaw+=turn;
 
- /* Triangle = look up */
+ if(pad.Buttons&PSP_CTRL_CIRCLE)
+  yaw-=turn;
+
  if(pad.Buttons&PSP_CTRL_TRIANGLE)
   pitch+=.025f;
 
- /* Cross = look down */
  if(pad.Buttons&PSP_CTRL_CROSS)
   pitch-=.025f;
 
+ /* Limit camera looking angle */
  if(pitch>.8f)pitch=.8f;
  if(pitch<-.8f)pitch=-.8f;
 
- /* MOVEMENT CONTROLS */
+ /* Joystick movement */
+ x+=sinf(yaw)*(-ay)*speed-cosf(yaw)*ax*speed;
+ z+=cosf(yaw)*(-ay)*speed+sinf(yaw)*ax*speed;
 
- /* Analog stick moves independently */
- x+=sinf(yaw)*(-ay)*speed+cosf(yaw)*ax*speed;
- z+=cosf(yaw)*(-ay)*speed-sinf(yaw)*ax*speed;
-
- /* Room boundaries */
+ /* Left and right boundaries */
  if(x>7.1f)x=7.1f;
  if(x< -7.1f)x=-7.1f;
+
+ /* Back boundary */
  if(z< -8.1f)z=-8.1f;
 
- /* Doorway transitions */
+ /* Front doorway and room transitions */
  if(z>8.5f){
   if((room==0&&!solved)||(room==5&&!secret)){
    z=8.4f;
@@ -300,9 +295,10 @@ static void update(void){
   }
  }
 
+ /* Keep player inside the room */
  if(z< -8)z=-8;
 
- /* Easter egg tracking */
+ /* Easter egg movement tracking */
  if(!ax&&!ay)still++;
  else still=0;
 
@@ -312,10 +308,11 @@ static void update(void){
  if(still==900)message(9,240);
  if(backwards==600)message(8,240);
 
- /* R trigger = interact */
+ /* Interaction */
  if(hit(PSP_CTRL_RTRIGGER))
   interact();
 
+ /* Message timer */
  if(msgTicks>0)msgTicks--;
 }
 
@@ -342,11 +339,11 @@ static void textScreen(void){
  pspDebugScreenPrintf("------------------------------\n");
 
  pspDebugScreenPrintf("Analog: Walk / Strafe\n");
- pspDebugScreenPrintf("Square: Turn Left\n");
- pspDebugScreenPrintf("Circle: Turn Right\n");
- pspDebugScreenPrintf("Triangle: Look Up\n");
- pspDebugScreenPrintf("Cross: Look Down\n");
- pspDebugScreenPrintf("R Trigger: Interact\n\n");
+pspDebugScreenPrintf("Square: Turn Right\n");
+pspDebugScreenPrintf("Circle: Turn Left\n");
+pspDebugScreenPrintf("Triangle: Look Up\n");
+pspDebugScreenPrintf("Cross: Look Down\n");
+pspDebugScreenPrintf("R Trigger: Interact\n\n");
 
  pspDebugScreenPrintf("%s\n",
   msgTicks>0?messages[msg]:rooms[room].hint);
