@@ -236,42 +236,73 @@ static void interact(void){
  message(5,150);
 }
 
+
 static void update(void){
  float ax=(pad.Lx-128)/128.0f;
  float ay=(pad.Ly-128)/128.0f;
+ float len=sqrtf(ax*ax+ay*ay);
 
- /* Analog dead zones */
- if(fabsf(ax)<0.15f)ax=0;
- if(fabsf(ay)<0.15f)ay=0;
+ const float dead=.15f;
+ const float speed=.075f;
+ const float turn=.045f;
 
- /* Left/right turns the camera (reversed) */
- yaw-=ax*.045f;
+ /* Analog stick dead zone */
+ if(fabsf(ax)<dead)ax=0;
+ if(fabsf(ay)<dead)ay=0;
 
- /* Triangle and Circle control looking up/down */
- if(pad.Buttons&PSP_CTRL_TRIANGLE)pitch+=.025f;
- if(pad.Buttons&PSP_CTRL_CIRCLE)pitch-=.025f;
+ /* Normalize diagonal movement */
+ len=sqrtf(ax*ax+ay*ay);
+ if(len>1.0f){
+  ax/=len;
+  ay/=len;
+ }
+
+ /* CAMERA CONTROLS */
+
+ /* Square = turn left */
+ if(pad.Buttons&PSP_CTRL_SQUARE)
+  yaw-=turn;
+
+ /* Circle = turn right */
+ if(pad.Buttons&PSP_CTRL_CIRCLE)
+  yaw+=turn;
+
+ /* Triangle = look up */
+ if(pad.Buttons&PSP_CTRL_TRIANGLE)
+  pitch+=.025f;
+
+ /* Cross = look down */
+ if(pad.Buttons&PSP_CTRL_CROSS)
+  pitch-=.025f;
 
  if(pitch>.8f)pitch=.8f;
  if(pitch<-.8f)pitch=-.8f;
 
- /* Forward and backward movement only */
- x+=sinf(yaw)*(-ay)*.075f;
- z+=cosf(yaw)*(-ay)*.075f;
+ /* MOVEMENT CONTROLS */
 
+ /* Analog stick moves independently */
+ x+=sinf(yaw)*(-ay)*speed+cosf(yaw)*ax*speed;
+ z+=cosf(yaw)*(-ay)*speed-sinf(yaw)*ax*speed;
+
+ /* Room boundaries */
  if(x>7.1f)x=7.1f;
  if(x< -7.1f)x=-7.1f;
  if(z< -8.1f)z=-8.1f;
 
+ /* Doorway transitions */
  if(z>8.5f){
   if((room==0&&!solved)||(room==5&&!secret)){
    z=8.4f;
    message(5,120);
   }
-  else enter(room+1);
+  else{
+   enter(room+1);
+  }
  }
 
  if(z< -8)z=-8;
 
+ /* Easter egg tracking */
  if(!ax&&!ay)still++;
  else still=0;
 
@@ -281,7 +312,9 @@ static void update(void){
  if(still==900)message(9,240);
  if(backwards==600)message(8,240);
 
- if(hit(PSP_CTRL_CROSS))interact();
+ /* R trigger = interact */
+ if(hit(PSP_CTRL_RTRIGGER))
+  interact();
 
  if(msgTicks>0)msgTicks--;
 }
