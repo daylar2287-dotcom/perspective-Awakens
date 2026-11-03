@@ -319,6 +319,7 @@ static void update(void){
  if(msgTicks>0)msgTicks--;
 }
 
+
 static void textScreen(void){
  pspDebugScreenSetXY(0,0);
 
@@ -326,7 +327,10 @@ static void textScreen(void){
   pspDebugScreenPrintf("P E R S P E C T I V E   A W A K E N S\n\n\n");
   pspDebugScreenPrintf("              [  ]\n\n\n");
   pspDebugScreenPrintf("       PRESS START TO WAKE UP\n");
-  if(titleTicks>180)pspDebugScreenPrintf("\n                 . .\n");
+
+  if(titleTicks>180)
+   pspDebugScreenPrintf("\n                 . .\n");
+
   pspDebugScreenPrintf("\n\n  A world shaped by the way you see it.\n");
   return;
  }
@@ -334,10 +338,15 @@ static void textScreen(void){
  pspDebugScreenPrintf("%s\nROOM %d / %d     MEMORIES %d\n\n",
   rooms[room].name,room+1,ROOMS,secrets);
 
- pspDebugScreenPrintf("Analog up/down: move\n");
- pspDebugScreenPrintf("Analog left/right: turn\n");
- pspDebugScreenPrintf("X: interact\n");
- pspDebugScreenPrintf("Triangle/Circle: look up/down\n\n");
+ pspDebugScreenPrintf("CONTROLS\n");
+ pspDebugScreenPrintf("------------------------------\n");
+
+ pspDebugScreenPrintf("Analog: Walk / Strafe\n");
+ pspDebugScreenPrintf("Square: Turn Left\n");
+ pspDebugScreenPrintf("Circle: Turn Right\n");
+ pspDebugScreenPrintf("Triangle: Look Up\n");
+ pspDebugScreenPrintf("Cross: Look Down\n");
+ pspDebugScreenPrintf("R Trigger: Interact\n\n");
 
  pspDebugScreenPrintf("%s\n",
   msgTicks>0?messages[msg]:rooms[room].hint);
@@ -348,6 +357,7 @@ static void textScreen(void){
  if(room==6)
   pspDebugScreenPrintf("\nTHE QUESTION IS: WHO IS PLAYING WHOM?\n");
 }
+
 
 int main(void){
  sceCtrlSetSamplingCycle(0);
