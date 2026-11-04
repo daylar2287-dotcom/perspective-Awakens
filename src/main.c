@@ -40,7 +40,10 @@ static const Room rooms[ROOMS]={
 
 static int room=0,title=1,titleTicks=0,solved=0,secret=0;
 static int encounters=0,secrets=0,msg=0,msgTicks=0,still=0,backwards=0;
-static float x=0,y=1.65f,z=-3,yaw=0,pitch=0,cubeSize=.65f;\nstatic float vy=0.0f;\nstatic int gravityDir=1, gravityZone=0;
+
+static float x=0,y=1.65f,z=-3,yaw=0,pitch=0,cubeSize=.65f;
+static float vy=0.0f;
+static int gravityDir=1, gravityZone=0;
 
 static const char *messages[]={
  "The cube remembers the size you gave it.",
@@ -53,7 +56,9 @@ static const char *messages[]={
  "The chair is facing a different direction now.",
  "Developer note: this was definitely intentional.",
  "You stood still long enough for the world to notice.",
- "The ending is not where you think it is.",\n "Gravity has reversed. The ceiling is your floor.",\n "Gravity has returned to normal."
+ "The ending is not where you think it is.",
+ "Gravity has reversed. The ceiling is your floor.",
+ "Gravity has returned to normal."
 };
 
 static int hit(unsigned int b){
@@ -74,12 +79,10 @@ static V cv[]={
 {0xffffffff,-1,-1,-1},{0xffffffff,1,-1,-1},{0xffffffff,1,-1,1},{0xffffffff,-1,-1,-1},{0xffffffff,1,-1,1},{0xffffffff,-1,-1,1}
 };
 
-
 /* Tiny 64x64 procedural textures: deliberately chunky, monochrome PS1-era art. */
 typedef struct {float u,v;unsigned int c;float x,y,z;} TV;
 static unsigned int __attribute__((aligned(16))) wallTex[64*64];
 static unsigned int __attribute__((aligned(16))) floorTex[64*64];
-/* GU vertex data is kept in aligned static memory and flushed before DMA. */
 static TV __attribute__((aligned(16))) texturedVerts[6];
 static V __attribute__((aligned(16))) boxVerts[36];
 
@@ -88,12 +91,12 @@ static void makeTextures(void){
  for(ty=0;ty<64;ty++)for(tx=0;tx<64;tx++){
   int n=(tx*37+ty*19+tx*ty*3+(tx^ty)*11)%23;
   int shade=151+n-11;
-  /* Plaster panel seams, scratches and thin branching cracks. */
   if(ty%16==0 || tx%32==0)shade-=22;
   if((tx==11&&ty>8&&ty<25)||(tx==12&&ty>25&&ty<31)||
      (tx==45&&ty>39&&ty<55))shade-=42;
   if((tx+ty*3)%47==0)shade-=25;
-  if(shade<55)shade=55;if(shade>205)shade=205;
+  if(shade<55)shade=55;
+  if(shade>205)shade=205;
   wallTex[ty*64+tx]=0xff000000u|((unsigned int)shade<<16)|
                     ((unsigned int)shade<<8)|(unsigned int)shade;
 
@@ -101,19 +104,17 @@ static void makeTextures(void){
    int tile=((tx/16)+(ty/16))&1;
    int fshade=(tile?132:151)+(int)((tx*13+ty*7)%13)-6;
    if(tx%16<2||ty%16<2)fshade-=35;
-   if(fshade<50)fshade=50;if(fshade>190)fshade=190;
+   if(fshade<50)fshade=50;
+   if(fshade>190)fshade=190;
    floorTex[ty*64+tx]=0xff000000u|((unsigned int)fshade<<16)|
                       ((unsigned int)fshade<<8)|(unsigned int)fshade;
   }
  }
- /* The PSP GPU reads texture data outside the CPU cache. Flush both arrays
-    once after generation so it never sees stale/partially updated pixels. */
  sceKernelDcacheWritebackRange(wallTex,sizeof(wallTex));
  sceKernelDcacheWritebackRange(floorTex,sizeof(floorTex));
 }
 
 static void texturedQuad(const TV *v,int isFloor){
- /* Flush the exact vertex range before the GU reads it. */
  sceKernelDcacheWritebackRange((void*)v,6*sizeof(TV));
  sceGuEnable(GU_TEXTURE_2D);
  sceGuTexMode(GU_PSM_8888,0,0,GU_FALSE);
@@ -162,13 +163,11 @@ static int blockedAt(float px,float pz){
  Obstacle o;
  float r=PLAYER_RADIUS;
 
- /* Cube and pedestal */
  if(room<2){
   o=(Obstacle){0,1.7f,.85f,.85f};
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
  }
 
- /* Gallery objects */
  if(room==1){
   o=(Obstacle){-3.8f,-2.5f,.7f,.7f};
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
@@ -176,13 +175,11 @@ static int blockedAt(float px,float pz){
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
  }
 
- /* Chatterbox */
  if(room==2){
   o=(Obstacle){0,-2,.42f,.42f};
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
  }
 
- /* Impossible staircase */
  if(room==3){
   int i;
   for(i=0;i<4;i++){
@@ -191,13 +188,11 @@ static int blockedAt(float px,float pz){
   }
  }
 
- /* Clock */
  if(room==4){
   o=(Obstacle){0,-5,1.6f,.2f};
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
  }
 
- /* Developer room objects */
  if(room==5){
   o=(Obstacle){-4,0,.8f,.8f};
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
@@ -205,13 +200,11 @@ static int blockedAt(float px,float pz){
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
  }
 
- /* Final room object */
  if(room==6){
   o=(Obstacle){0,0,.45f,.45f};
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
  }
 
- /* Star-room floating platforms */
  if(room==7){
   o=(Obstacle){-2.5f,-1.0f,1.0f,.8f};
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
@@ -219,7 +212,6 @@ static int blockedAt(float px,float pz){
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
  }
 
- /* Gravity chamber pillars */
  if(room==8){
   o=(Obstacle){-3.2f,-1.0f,.65f,.65f};
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
@@ -227,14 +219,12 @@ static int blockedAt(float px,float pz){
   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
  }
 
- /* Recurring chair: seat and back */
  o=(Obstacle){-4.7f,-4,.75f,.75f};
  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
 
  o=(Obstacle){-4.7f,-4.65f,.75f,.12f};
  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
 
- /* Chair legs */
  o=(Obstacle){-5.25f,-4,.12f,.12f};
  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
 
@@ -247,20 +237,16 @@ static int blockedAt(float px,float pz){
 static void roomDraw(void){
  unsigned int a=rooms[room].wall,b=rooms[room].floor;
 
- /* Retro low-resolution textures; all surfaces remain static (no flicker). */
  texturedPlane(-8,0,-9, 8,0,-9, 8,0,9, -8,0,9, 8,9,1);
  texturedPlane(-8,4.02f,9, 8,4.02f,9, 8,4.02f,-9, -8,4.02f,-9, 8,9,0);
  texturedPlane(-8,0,-9, -8,4.2f,-9, -8,4.2f,9, -8,0,9, 9,2,0);
  texturedPlane(8,0,9, 8,4.2f,9, 8,4.2f,-9, 8,0,-9, 9,2,0);
  texturedPlane(-8,0,-9, -8,4.2f,-9, 8,4.2f,-9, 8,0,-9, 8,2,0);
- /* Front wall is left as solid panels around the doorway. */
+
+ /* Front wall panels around the doorway. */
  box(-2.7f,2,8.9f,5.3f,2.2f,.18f,a);
  box(2.7f,2,8.9f,5.3f,2.2f,.18f,a);
  box(0,3.75f,8.9f,2.7f,.45f,.18f,a);
-
- /* Doorway opening */
- /* The opening is empty: the next chamber is reached by walking
-    through this framed doorway, not by touching a dark portal plane. */
 
  /* Door frame */
  box(-2.48f,1.8f,8.72f,.12f,1.9f,.16f,0xff333333);
@@ -270,53 +256,44 @@ static void roomDraw(void){
  box(-2.28f,1.7f,8.78f,.06f,1.65f,.08f,0xffaaaaaa);
  box(2.28f,1.7f,8.78f,.06f,1.65f,.08f,0xffaaaaaa);
 
- /* Cube and pedestal */
  if(room<2){
   box(0,.65f,1.7f,.85f,.12f,.85f,0xff555555);
   box(0,1.45f,1.7f,cubeSize,cubeSize,cubeSize,0xff222222);
  }
 
- /* Gallery details */
  if(room==1){
   box(-3.8f,1.1f,-2.5f,.7f,1.1f,.7f,0xff777777);
   box(3.8f,1.1f,-2.5f,.7f,1.1f,.7f,0xff777777);
  }
 
- /* Chatterbox */
  if(room==2){
   box(0,2.7f,-2,.38f,.38f,.38f,0xff222222);
   box(0,2.7f,-1.59f,.25f,.2f,.035f,0xffeeeeee);
  }
 
- /* Impossible staircase */
  if(room==3){
   int i;
   for(i=0;i<4;i++)
    box(0,.45f+i*.65f,-4.5f+i*1.6f,1.8f,.18f,.75f,0xff777777);
  }
 
- /* Clock room */
  if(room==4){
   box(0,2.1f,-5,1.6f,1.6f,.12f,0xff333333);
   box(0,2.1f,-4.82f,1.3f,1.3f,.035f,0xffeeeeee);
  }
 
- /* Developer room */
  if(room==5){
   box(-4,.6f,0,.8f,.6f,.8f,0xff444444);
   box(4,.6f,0,.8f,.6f,.8f,0xff444444);
  }
 
- /* Final room */
  if(room==6){
   box(0,2.3f,0,.45f,.45f,.45f,0xff111111);
   box(0,2.3f,0,.22f,.22f,.22f,0xffeeeeee);
  }
 
- /* The Star Room: dark open space, distant star points and quiet islands. */
  if(room==7){
   int i;
-  /* Small bright cubes are used as stable PSP-friendly star points. */
   for(i=0;i<42;i++){
    float sx=(float)(((i*37)%151)-75)*.085f;
    float sy=.8f+(float)((i*19)%31)*.095f;
@@ -329,7 +306,6 @@ static void roomDraw(void){
   box(0,.22f,-6.0f,1.5f,.12f,1.0f,0xff343e54);
  }
 
- /* Gravity Chamber: suspended slabs and a ceiling path. */
  if(room==8){
   int i;
   box(-3.2f,1.0f,-1.0f,.65f,1.0f,.65f,0xff59616b);
@@ -387,7 +363,8 @@ static void draw3d(void){
 }
 
 static void resetPos(void){
- x=0;y=1.65f;z=-3;yaw=0;pitch=0;\n vy=0.0f;gravityDir=1;gravityZone=0;
+ x=0;y=1.65f;z=-3;yaw=0;pitch=0;
+ vy=0.0f;gravityDir=1;gravityZone=0;
 }
 
 static void enter(int r){
@@ -469,15 +446,41 @@ static void update(void){
  if(pitch>.8f)pitch=.8f;
  if(pitch<-.8f)pitch=-.8f;
 
+ /* Gravity Chamber: crossing the marked zone reverses gravity. */
+ if(room==8){
+  int zone=(z>-1.0f && z<2.2f)?1:0;
+  if(zone!=gravityZone){
+   gravityZone=zone;
+   gravityDir=zone?-1:1;
+   vy=0.0f;
+   message(zone?11:12,150);
+  }
+
+  vy+=0.012f*(float)gravityDir;
+  if(vy>0.10f)vy=0.10f;
+  if(vy< -0.10f)vy=-0.10f;
+  y-=vy;
+
+  if(gravityDir==1 && y<1.65f){
+   y=1.65f;vy=0.0f;
+  }
+  if(gravityDir==-1 && y>3.35f){
+   y=3.35f;vy=0.0f;
+  }
+ }else{
+  y=1.65f;
+  vy=0.0f;
+  gravityDir=1;
+  gravityZone=0;
+ }
+
  /* Calculate movement */
  float dx=sinf(yaw)*(-ay)*speed-cosf(yaw)*ax*speed;
  float dz=cosf(yaw)*(-ay)*speed+sinf(yaw)*ax*speed;
 
- /* Move on X first, allowing wall sliding */
  if(!blockedAt(x+dx,z))
   x+=dx;
 
- /* Move on Z separately, allowing object sliding */
  if(!blockedAt(x,z+dz))
   z+=dz;
 
@@ -500,7 +503,6 @@ static void update(void){
   }
  }
 
- /* The rear wall is solid; prevent walking through it. */
  if(z< -8.45f)z=-8.45f;
 
  /* Easter egg movement tracking */
@@ -513,7 +515,6 @@ static void update(void){
  if(still==900)message(9,240);
  if(backwards==600)message(8,240);
 
- /* Interaction */
  if(hit(PSP_CTRL_RTRIGGER))
   interact();
 
