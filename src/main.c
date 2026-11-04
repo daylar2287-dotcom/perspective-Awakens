@@ -72,6 +72,64 @@ static V cv[]={
 {0xffffffff,-1,-1,-1},{0xffffffff,1,-1,-1},{0xffffffff,1,-1,1},{0xffffffff,-1,-1,-1},{0xffffffff,1,-1,1},{0xffffffff,-1,-1,1}
 };
 
+
+/* Tiny 64x64 procedural textures: deliberately chunky, monochrome PS1-era art. */
+typedef struct {float u,v;unsigned int c;float x,y,z;} TV;
+static unsigned int __attribute__((aligned(16))) wallTex[64*64];
+static unsigned int __attribute__((aligned(16))) floorTex[64*64];
+
+static void makeTextures(void){
+ int tx,ty;
+ for(ty=0;ty<64;ty++)for(tx=0;tx<64;tx++){
+  int n=(tx*37+ty*19+tx*ty*3+(tx^ty)*11)%23;
+  int shade=151+n-11;
+  /* Plaster panel seams, scratches and thin branching cracks. */
+  if(ty%16==0 || tx%32==0)shade-=22;
+  if((tx==11&&ty>8&&ty<25)||(tx==12&&ty>25&&ty<31)||
+     (tx==45&&ty>39&&ty<55))shade-=42;
+  if((tx+ty*3)%47==0)shade-=25;
+  if(shade<55)shade=55;if(shade>205)shade=205;
+  wallTex[ty*64+tx]=0xff000000u|((unsigned int)shade<<16)|
+                    ((unsigned int)shade<<8)|(unsigned int)shade;
+
+  {
+   int tile=((tx/16)+(ty/16))&1;
+   int fshade=(tile?132:151)+(int)((tx*13+ty*7)%13)-6;
+   if(tx%16<2||ty%16<2)fshade-=35;
+   if(fshade<50)fshade=50;if(fshade>190)fshade=190;
+   floorTex[ty*64+tx]=0xff000000u|((unsigned int)fshade<<16)|
+                      ((unsigned int)fshade<<8)|(unsigned int)fshade;
+  }
+ }
+}
+
+static void texturedQuad(const TV *v,int isFloor){
+ sceGuEnable(GU_TEXTURE_2D);
+ sceGuTexMode(GU_PSM_8888,0,0,GU_FALSE);
+ sceGuTexImage(0,64,64,64,isFloor?floorTex:wallTex);
+ sceGuTexFunc(GU_TFX_MODULATE,GU_TCC_RGB);
+ sceGuTexFilter(GU_NEAREST,GU_NEAREST);
+ sceGuTexWrap(GU_REPEAT,GU_REPEAT);
+ sceGuColor(0xffffffff);
+ sceGumDrawArray(GU_TRIANGLES,
+  GU_TEXTURE_32BITF|GU_COLOR_8888|GU_VERTEX_32BITF|GU_TRANSFORM_3D,
+  6,0,v);
+ sceGuDisable(GU_TEXTURE_2D);
+}
+
+static void texturedPlane(float x1,float y1,float z1,
+                          float x2,float y2,float z2,
+                          float x3,float y3,float z3,
+                          float x4,float y4,float z4,
+                          float ru,float rv,int isFloor){
+ TV v[6]={
+  {0,0,0xffffffff,x1,y1,z1},{ru,0,0xffffffff,x2,y2,z2},
+  {ru,rv,0xffffffff,x3,y3,z3},{0,0,0xffffffff,x1,y1,z1},
+  {ru,rv,0xffffffff,x3,y3,z3},{0,rv,0xffffffff,x4,y4,z4}
+ };
+ texturedQuad(v,isFloor);
+}
+
 static void box(float a,float b,float c,float sx,float sy,float sz,unsigned int col){
  V v[36];
  int i;
@@ -158,17 +216,18 @@ static int blockedAt(float px,float pz){
 static void roomDraw(void){
  unsigned int a=rooms[room].wall,b=rooms[room].floor;
 
- /* Static walls and floor: no flickering */
- box(0,-.18f,0,8,.18f,9,b);
- box(0,4.2f,0,8,.18f,9,0xfff5f5f5);
- box(-8,2,0,.18f,2.2f,9,a);
- box(8,2,0,.18f,2.2f,9,a);
- box(0,2,-9,8,2.2f,.18f,a);
-
- /* Doorway opening */
+ /* Retro low-resolution textures; all surfaces remain static (no flicker). */
+ texturedPlane(-8,0,-9, 8,0,-9, 8,0,9, -8,0,9, 8,9,1);
+ texturedPlane(-8,4.02f,9, 8,4.02f,9, 8,4.02f,-9, -8,4.02f,-9, 8,9,0);
+ texturedPlane(-8,0,-9, -8,4.2f,-9, -8,4.2f,9, -8,0,9, 9,2,0);
+ texturedPlane(8,0,9, 8,4.2f,9, 8,4.2f,-9, 8,0,-9, 9,2,0);
+ texturedPlane(-8,0,-9, -8,4.2f,-9, 8,4.2f,-9, 8,0,-9, 8,2,0);
+ /* Front wall is left as solid panels around the doorway. */
  box(-2.7f,2,8.9f,5.3f,2.2f,.18f,a);
  box(2.7f,2,8.9f,5.3f,2.2f,.18f,a);
  box(0,3.75f,8.9f,2.7f,.45f,.18f,a);
+
+ /* Doorway opening */
  box(0,1.65f,9.02f,2.35f,1.65f,.035f,0xff080808);
 
  /* Door frame */
@@ -435,6 +494,7 @@ int main(void){
  sceCtrlSetSamplingMode(PSP_CTRL_MODE_ANALOG);
  pspDebugScreenInit();
  sceGuInit();
+ makeTextures();
 
  sceGuStart(GU_DIRECT,list);
  sceGuDrawBuffer(GU_PSM_8888,(void*)0,W);
