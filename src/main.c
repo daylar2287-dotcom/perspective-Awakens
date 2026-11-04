@@ -17,9 +17,11 @@ PSP_HEAP_SIZE_KB(-1024);
 #define SW 480
 #define SH 272
 #define ROOMS 7
+#define PLAYER_RADIUS .38f
 
 typedef struct {unsigned int c;float x,y,z;} V;
 typedef struct {const char *name,*hint;unsigned int wall,floor;} Room;
+typedef struct {float x,z,hx,hz;} Obstacle;
 
 static unsigned int __attribute__((aligned(16))) list[262144];
 static SceCtrlData pad,old;
@@ -34,7 +36,8 @@ static const Room rooms[ROOMS]={
  {"THE QUESTION ROOM","You were always part of the experiment.",0xffe8e8e8,0xffcccccc}
 };
 
-static int room=0,title=1,titleTicks=0,solved=0,secret=0,encounters=0,secrets=0,msg=0,msgTicks=0,still=0,backwards=0;
+static int room=0,title=1,titleTicks=0,solved=0,secret=0;
+static int encounters=0,secrets=0,msg=0,msgTicks=0,still=0,backwards=0;
 static float x=0,y=1.65f,z=-3,yaw=0,pitch=0,cubeSize=.65f;
 
 static const char *messages[]={
@@ -81,9 +84,81 @@ static void box(float a,float b,float c,float sx,float sy,float sz,unsigned int 
  sceGumPopMatrix();
 }
 
+/* Object collision: player is treated as a small circle. */
+static int blockedAt(float px,float pz){
+ Obstacle o;
+ float r=PLAYER_RADIUS;
+
+ /* Cube and pedestal */
+ if(room<2){
+  o=(Obstacle){0,1.7f,.85f,.85f};
+  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+ }
+
+ /* Gallery objects */
+ if(room==1){
+  o=(Obstacle){-3.8f,-2.5f,.7f,.7f};
+  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+  o=(Obstacle){3.8f,-2.5f,.7f,.7f};
+  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+ }
+
+ /* Chatterbox */
+ if(room==2){
+  o=(Obstacle){0,-2,.42f,.42f};
+  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+ }
+
+ /* Impossible staircase */
+ if(room==3){
+  int i;
+  for(i=0;i<4;i++){
+   o=(Obstacle){0,-4.5f+i*1.6f,1.8f,.75f};
+   if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+  }
+ }
+
+ /* Clock */
+ if(room==4){
+  o=(Obstacle){0,-5,1.6f,.2f};
+  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+ }
+
+ /* Developer room objects */
+ if(room==5){
+  o=(Obstacle){-4,0,.8f,.8f};
+  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+  o=(Obstacle){4,0,.8f,.8f};
+  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+ }
+
+ /* Final room object */
+ if(room==6){
+  o=(Obstacle){0,0,.45f,.45f};
+  if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+ }
+
+ /* Recurring chair: seat and back */
+ o=(Obstacle){-4.7f,-4,.75f,.75f};
+ if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+
+ o=(Obstacle){-4.7f,-4.65f,.75f,.12f};
+ if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+
+ /* Chair legs */
+ o=(Obstacle){-5.25f,-4,.12f,.12f};
+ if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+
+ o=(Obstacle){-4.15f,-4,.12f,.12f};
+ if(fabsf(px-o.x)<o.hx+r && fabsf(pz-o.z)<o.hz+r)return 1;
+
+ return 0;
+}
+
 static void roomDraw(void){
  unsigned int a=rooms[room].wall,b=rooms[room].floor;
 
+ /* Static walls and floor: no flickering */
  box(0,-.18f,0,8,.18f,9,b);
  box(0,4.2f,0,8,.18f,9,0xfff5f5f5);
  box(-8,2,0,.18f,2.2f,9,a);
@@ -236,7 +311,6 @@ static void interact(void){
  message(5,150);
 }
 
-
 static void update(void){
  float ax=(pad.Lx-128)/128.0f;
  float ay=(pad.Ly-128)/128.0f;
@@ -245,11 +319,9 @@ static void update(void){
  const float speed=.075f;
  const float turn=.045f;
 
- /* Joystick dead zone */
  if(fabsf(ax)<dead)ax=0;
  if(fabsf(ay)<dead)ay=0;
 
- /* Normalize diagonal movement */
  float len=sqrtf(ax*ax+ay*ay);
  if(len>1.0f){
   ax/=len;
@@ -269,15 +341,22 @@ static void update(void){
  if(pad.Buttons&PSP_CTRL_CROSS)
   pitch-=.025f;
 
- /* Limit camera looking angle */
  if(pitch>.8f)pitch=.8f;
  if(pitch<-.8f)pitch=-.8f;
 
- /* Joystick movement */
- x+=sinf(yaw)*(-ay)*speed-cosf(yaw)*ax*speed;
- z+=cosf(yaw)*(-ay)*speed+sinf(yaw)*ax*speed;
+ /* Calculate movement */
+ float dx=sinf(yaw)*(-ay)*speed-cosf(yaw)*ax*speed;
+ float dz=cosf(yaw)*(-ay)*speed+sinf(yaw)*ax*speed;
 
- /* Left and right boundaries */
+ /* Move on X first, allowing wall sliding */
+ if(!blockedAt(x+dx,z))
+  x+=dx;
+
+ /* Move on Z separately, allowing object sliding */
+ if(!blockedAt(x,z+dz))
+  z+=dz;
+
+ /* Room side boundaries */
  if(x>7.1f)x=7.1f;
  if(x< -7.1f)x=-7.1f;
 
@@ -295,7 +374,6 @@ static void update(void){
   }
  }
 
- /* Keep player inside the room */
  if(z< -8)z=-8;
 
  /* Easter egg movement tracking */
@@ -312,10 +390,8 @@ static void update(void){
  if(hit(PSP_CTRL_RTRIGGER))
   interact();
 
- /* Message timer */
  if(msgTicks>0)msgTicks--;
 }
-
 
 static void textScreen(void){
  pspDebugScreenSetXY(0,0);
@@ -337,13 +413,12 @@ static void textScreen(void){
 
  pspDebugScreenPrintf("CONTROLS\n");
  pspDebugScreenPrintf("------------------------------\n");
-
  pspDebugScreenPrintf("Analog: Walk / Strafe\n");
-pspDebugScreenPrintf("Square: Turn Right\n");
-pspDebugScreenPrintf("Circle: Turn Left\n");
-pspDebugScreenPrintf("Triangle: Look Up\n");
-pspDebugScreenPrintf("Cross: Look Down\n");
-pspDebugScreenPrintf("R Trigger: Interact\n\n");
+ pspDebugScreenPrintf("Square: Turn Right\n");
+ pspDebugScreenPrintf("Circle: Turn Left\n");
+ pspDebugScreenPrintf("Triangle: Look Up\n");
+ pspDebugScreenPrintf("Cross: Look Down\n");
+ pspDebugScreenPrintf("R Trigger: Interact\n\n");
 
  pspDebugScreenPrintf("%s\n",
   msgTicks>0?messages[msg]:rooms[room].hint);
@@ -354,7 +429,6 @@ pspDebugScreenPrintf("R Trigger: Interact\n\n");
  if(room==6)
   pspDebugScreenPrintf("\nTHE QUESTION IS: WHO IS PLAYING WHOM?\n");
 }
-
 
 int main(void){
  sceCtrlSetSamplingCycle(0);
